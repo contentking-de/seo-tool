@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type AuditResponse = {
   url: string;
@@ -38,6 +38,44 @@ export default function AuditClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AuditResponse | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  const loadingMessages = useMemo(
+    () => [
+      "Fetching page…",
+      "Parsing HTML…",
+      "Analyzing metadata…",
+      "Counting links and images…",
+      "Requesting PageSpeed Insights…",
+      "Crunching numbers…",
+      "Almost there…",
+    ],
+    []
+  );
+
+  useEffect(() => {
+    let progressTimer: ReturnType<typeof setInterval> | null = null;
+    let messageTimer: ReturnType<typeof setInterval> | null = null;
+    if (loading) {
+      setProgress(5);
+      setMsgIndex(0);
+      progressTimer = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 92) return prev; // cap until response arrives
+          const increment = prev < 50 ? 3 : prev < 75 ? 2 : 1;
+          return Math.min(prev + increment, 92);
+        });
+      }, 400);
+      messageTimer = setInterval(() => {
+        setMsgIndex((i) => (i + 1) % loadingMessages.length);
+      }, 1500);
+    }
+    return () => {
+      if (progressTimer) clearInterval(progressTimer);
+      if (messageTimer) clearInterval(messageTimer);
+    };
+  }, [loading, loadingMessages.length]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,6 +94,7 @@ export default function AuditClient() {
       setError("Audit failed. Please check the URL and try again.");
     } finally {
       setLoading(false);
+      setProgress(0);
     }
   }
 
@@ -78,6 +117,9 @@ export default function AuditClient() {
           {loading ? "Auditing…" : "Run audit"}
         </button>
       </form>
+      {loading && (
+        <LoadingCard message={loadingMessages[msgIndex]} progress={progress} />
+      )}
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
           {error}
@@ -250,6 +292,34 @@ function LhCell({ label, valueMs }: { label: string; valueMs: number | null }) {
       <div className="text-neutral-400">{label}</div>
       <div className="font-medium text-neutral-100">{valueMs == null ? "—" : Math.round(valueMs) + " ms"}</div>
     </div>
+  );
+}
+
+
+function LoadingCard({ message, progress }: { message: string; progress: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-neutral-900 p-5 grid gap-4">
+      <div className="flex items-center gap-3">
+        <Spinner />
+        <div className="text-sm text-neutral-300">{message}</div>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+        <div
+          className="h-full rounded-full bg-white transition-[width] duration-300 ease-out"
+          style={{ width: `${Math.max(5, Math.min(100, Math.round(progress)))}%` }}
+        />
+      </div>
+      <div className="text-right text-xs text-neutral-400">{Math.max(5, Math.min(99, Math.round(progress)))}%</div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-90" d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    </svg>
   );
 }
 
