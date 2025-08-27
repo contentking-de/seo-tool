@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
+  debug: process.env.NEXTAUTH_DEBUG === "true",
   pages: {
     signIn: "/login",
   },
@@ -18,17 +19,35 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user) return null;
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? undefined,
-          image: user.image ?? undefined,
-        };
+        try {
+          if (!credentials?.email || !credentials?.password) return null;
+          const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+          if (!user) {
+            if (process.env.NEXTAUTH_DEBUG === "true") {
+              console.warn("[auth][debug] authorize: user_not_found", credentials.email);
+            }
+            return null;
+          }
+          const valid = await bcrypt.compare(credentials.password, user.passwordHash);
+          if (!valid) {
+            if (process.env.NEXTAUTH_DEBUG === "true") {
+              console.warn("[auth][debug] authorize: password_mismatch for", credentials.email);
+            }
+            return null;
+          }
+          if (process.env.NEXTAUTH_DEBUG === "true") {
+            console.log("[auth][debug] authorize: success for", credentials.email);
+          }
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? undefined,
+            image: user.image ?? undefined,
+          };
+        } catch (err) {
+          console.error("[auth][error] authorize failed", err);
+          return null;
+        }
       },
     }),
   ],
