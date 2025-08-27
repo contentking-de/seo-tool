@@ -1,4 +1,8 @@
 import Link from "next/link";
+export const metadata = {
+  title: "Login",
+  description: "Access your SEO Tool dashboard and run on-page audits.",
+};
 
 export default function Home() {
   return (
