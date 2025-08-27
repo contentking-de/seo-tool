@@ -17,6 +17,7 @@ type AuditResponse = {
     };
     htmlLang: { value: string | null; ok: boolean };
     counts: { images: number; links: number; h1s: number };
+    links?: { internal: number; external: number; nofollow: number };
   };
 };
 
@@ -175,6 +176,26 @@ function AuditResults({ data }: { data: AuditResponse }) {
               </div>
             </div>
           </div>
+
+          {checks.links && (
+            <div className="grid gap-1">
+              <div className="text-sm text-neutral-300">Link breakdown</div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
+                  <div className="text-neutral-400">Internal</div>
+                  <div className="font-medium text-neutral-100">{checks.links.internal}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
+                  <div className="text-neutral-400">External</div>
+                  <div className="font-medium text-neutral-100">{checks.links.external}</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
+                  <div className="text-neutral-400">Nofollow</div>
+                  <div className="font-medium text-neutral-100">{checks.links.nofollow}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

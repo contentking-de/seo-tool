@@ -46,6 +46,38 @@ export async function GET(request: Request) {
     const ogUrl = $('meta[property="og:url"]').attr("content") ?? null;
     const lang = $("html").attr("lang") ?? null;
 
+    const pageUrl = new URL(targetUrl);
+    const linksAll = $("a[href]")
+      .map((_, el) => String($(el).attr("href") || "").trim())
+      .get()
+      .filter(Boolean)
+      .filter((href) => !href.startsWith("mailto:") && !href.startsWith("tel:") && !href.startsWith("javascript:") && href !== "#" && !href.startsWith("#"));
+
+    const toAbs = (href: string) => {
+      try {
+        return new URL(href, pageUrl).toString();
+      } catch {
+        return null;
+      }
+    };
+
+    const linksAbs = linksAll.map(toAbs).filter((u): u is string => Boolean(u));
+    const internal = linksAbs.filter((u) => {
+      try {
+        return new URL(u).host === pageUrl.host;
+      } catch {
+        return false;
+      }
+    });
+    const external = linksAbs.filter((u) => {
+      try {
+        return new URL(u).host !== pageUrl.host;
+      } catch {
+        return false;
+      }
+    });
+    const nofollow = $("a[rel~='nofollow']").length;
+
     const checks = {
       title: { value: title || null, ok: Boolean(title) },
       metaDescription: { value: metaDescription, ok: Boolean(metaDescription) },
@@ -60,8 +92,13 @@ export async function GET(request: Request) {
       htmlLang: { value: lang, ok: Boolean(lang) },
       counts: {
         images: $("img").length,
-        links: $("a").length,
+        links: linksAbs.length,
         h1s: $("h1").length,
+      },
+      links: {
+        internal: internal.length,
+        external: external.length,
+        nofollow,
       },
     } as const;
 
