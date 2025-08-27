@@ -142,6 +142,12 @@ Note: the build and install scripts run `prisma generate`. In production we poin
 
 ---
 
+## Roadmap / TODO
+1. Create signup functionality (invite-based or self-serve, with email verification)
+2. Implement 2FA for logins (TOTP via authenticator apps)
+
+---
+
 ## License
 MIT — see `LICENSE`.
 
