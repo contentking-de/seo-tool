@@ -49,6 +49,7 @@ ADMIN_PASSWORD="ChangeMe123!"
 
 # Optional: Google PageSpeed Insights API key (to enable Lighthouse summary)
 PAGESPEED_API_KEY=""
+# Get a key: see Google's guide — [Get started with the PageSpeed Insights API](https://developers.google.com/speed/docs/insights/v5/get-started)
 ```
 
 ### 3) Database (local)
