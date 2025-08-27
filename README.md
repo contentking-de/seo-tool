@@ -46,6 +46,9 @@ NEXTAUTH_SECRET="replace-with-strong-random-string"
 # Optional seeding convenience (POST /api/seed)
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="ChangeMe123!"
+
+# Optional: Google PageSpeed Insights API key (to enable Lighthouse summary)
+PAGESPEED_API_KEY=""
 ```
 
 ### 3) Database (local)

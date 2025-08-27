@@ -19,6 +19,17 @@ type AuditResponse = {
     counts: { images: number; links: number; h1s: number };
     links?: { internal: number; external: number; nofollow: number };
   };
+  pagespeed?: {
+    strategy: "mobile" | "desktop" | string;
+    performance: number | null;
+    metrics: {
+      fcpMs: number | null;
+      lcpMs: number | null;
+      cls: number | null;
+      tbtMs: number | null;
+      siMs: number | null;
+    };
+  } | null;
 };
 
 export default function AuditClient() {
@@ -196,8 +207,38 @@ function AuditResults({ data }: { data: AuditResponse }) {
               </div>
             </div>
           )}
+
+          {data.pagespeed && (
+            <div className="grid gap-2">
+              <div className="text-sm text-neutral-300">PageSpeed (Lighthouse)</div>
+              <div className="grid grid-cols-5 gap-2 text-sm">
+                <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
+                  <div className="text-neutral-400">Performance</div>
+                  <div className="font-medium text-neutral-100">
+                    {typeof data.pagespeed.performance === "number"
+                      ? Math.round(data.pagespeed.performance * 100)
+                      : "—"}
+                  </div>
+                </div>
+                <LhCell label="FCP" valueMs={data.pagespeed.metrics.fcpMs} />
+                <LhCell label="LCP" valueMs={data.pagespeed.metrics.lcpMs} />
+                <LhCell label="TBT" valueMs={data.pagespeed.metrics.tbtMs} />
+                <LhCell label="Speed Index" valueMs={data.pagespeed.metrics.siMs} />
+              </div>
+              <div className="text-xs text-neutral-400">Strategy: {data.pagespeed.strategy}</div>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function LhCell({ label, valueMs }: { label: string; valueMs: number | null }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
+      <div className="text-neutral-400">{label}</div>
+      <div className="font-medium text-neutral-100">{valueMs == null ? "—" : Math.round(valueMs) + " ms"}</div>
     </div>
   );
 }

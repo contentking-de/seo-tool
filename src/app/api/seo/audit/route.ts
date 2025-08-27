@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 import ky from "ky";
 import * as cheerio from "cheerio";
+import { z } from "zod";
 import { rateLimit } from "@/middleware/rateLimit";
 
 function isValidHttpUrl(input: string): boolean {
@@ -102,7 +103,69 @@ export async function GET(request: Request) {
       },
     } as const;
 
-    return new Response(JSON.stringify({ url: targetUrl, checks }), {
+    // Optional: Google PageSpeed Insights (Lighthouse) summary
+    type PageSpeedSummary = {
+      strategy: string;
+      performance: number | null;
+      metrics: {
+        fcpMs: number | null;
+        lcpMs: number | null;
+        cls: number | null;
+        tbtMs: number | null;
+        siMs: number | null;
+      };
+    } | null;
+    let pagespeed: PageSpeedSummary = null;
+    try {
+      const psiKey = process.env.PAGESPEED_API_KEY;
+      const base = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
+      const qs = new URLSearchParams({
+        url: targetUrl,
+        strategy: "mobile",
+        category: "PERFORMANCE",
+      });
+      if (psiKey) qs.set("key", psiKey);
+      const psiRespUnknown: unknown = await ky
+        .get(`${base}?${qs.toString()}`, { timeout: 20000, retry: { limit: 0 } })
+        .json();
+
+      const LhSchema = z.object({
+        lighthouseResult: z
+          .object({
+            categories: z
+              .object({
+                performance: z.object({ score: z.number().nullable().optional() }).partial().optional(),
+              })
+              .partial()
+              .optional(),
+            audits: z
+              .record(z.string(), z.object({ numericValue: z.number().nullable().optional() }))
+              .optional(),
+          })
+          .optional(),
+      });
+
+      const parsed = LhSchema.safeParse(psiRespUnknown);
+      const lr = parsed.success ? parsed.data.lighthouseResult : undefined;
+      if (lr) {
+        const n = (k: string) => lr.audits?.[k]?.numericValue ?? null;
+        pagespeed = {
+          strategy: "mobile",
+          performance: lr.categories?.performance?.score ?? null,
+          metrics: {
+            fcpMs: n("first-contentful-paint"),
+            lcpMs: n("largest-contentful-paint"),
+            cls: n("cumulative-layout-shift"),
+            tbtMs: n("total-blocking-time"),
+            siMs: n("speed-index"),
+          },
+        };
+      }
+    } catch {
+      pagespeed = null; // Do not block audit if PSI fails
+    }
+
+    return new Response(JSON.stringify({ url: targetUrl, checks, pagespeed }), {
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
