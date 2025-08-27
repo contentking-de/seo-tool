@@ -42,3 +42,12 @@ next-env.d.ts
 
 /src/generated/prisma
 /src/generated/**
+
+# local data/exports
+export_*.csv
+.tmp_hash
+cookies.txt
+
+# local sqlite dbs
+prisma/dev.db
+prisma/prisma/dev.db
