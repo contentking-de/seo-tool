@@ -116,56 +116,84 @@ export async function GET(request: Request) {
       };
     } | null;
     let pagespeed: PageSpeedSummary = null;
+    let pagespeedError: { code?: number; statusText?: string; message?: string } | null = null;
     try {
+      const redactKey = (text: string | undefined | null): string | undefined | null => {
+        if (!text) return text;
+        try {
+          return text.replace(/(key=)[^&\s]+/gi, "$1REDACTED");
+        } catch {
+          return text;
+        }
+      };
       const psiKey = process.env.PAGESPEED_API_KEY;
       const base = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
-      const qs = new URLSearchParams({
-        url: targetUrl,
-        strategy: "mobile",
-        category: "PERFORMANCE",
-      });
-      if (psiKey) qs.set("key", psiKey);
-      const psiRespUnknown: unknown = await ky
-        .get(`${base}?${qs.toString()}`, { timeout: 20000, retry: { limit: 0 } })
-        .json();
+      const strategies = ["mobile", "desktop"] as const;
 
-      const LhSchema = z.object({
-        lighthouseResult: z
-          .object({
-            categories: z
-              .object({
-                performance: z.object({ score: z.number().nullable().optional() }).partial().optional(),
-              })
-              .partial()
-              .optional(),
-            audits: z
-              .record(z.string(), z.object({ numericValue: z.number().nullable().optional() }))
-              .optional(),
-          })
-          .optional(),
-      });
+      for (const strategy of strategies) {
+        const qs = new URLSearchParams({
+          url: targetUrl,
+          strategy,
+          category: "performance",
+        });
+        if (psiKey) qs.set("key", psiKey);
 
-      const parsed = LhSchema.safeParse(psiRespUnknown);
-      const lr = parsed.success ? parsed.data.lighthouseResult : undefined;
-      if (lr) {
-        const n = (k: string) => lr.audits?.[k]?.numericValue ?? null;
-        pagespeed = {
-          strategy: "mobile",
-          performance: lr.categories?.performance?.score ?? null,
-          metrics: {
-            fcpMs: n("first-contentful-paint"),
-            lcpMs: n("largest-contentful-paint"),
-            cls: n("cumulative-layout-shift"),
-            tbtMs: n("total-blocking-time"),
-            siMs: n("speed-index"),
-          },
-        };
+        const resp = await ky.get(`${base}?${qs.toString()}`, {
+          timeout: 60000,
+          retry: { limit: 1, methods: ["get"] },
+          throwHttpErrors: false,
+        });
+        const psiRespUnknown: unknown = await resp.json();
+
+        const LhSchema = z.object({
+          lighthouseResult: z
+            .object({
+              categories: z
+                .object({
+                  performance: z.object({ score: z.number().nullable().optional() }).partial().optional(),
+                })
+                .partial()
+                .optional(),
+              audits: z
+                .record(z.string(), z.object({ numericValue: z.number().nullable().optional() }))
+                .optional(),
+            })
+            .optional(),
+        });
+
+        const parsed = LhSchema.safeParse(psiRespUnknown);
+        const lr = parsed.success ? parsed.data.lighthouseResult : undefined;
+        if (resp.ok && lr) {
+          const n = (k: string) => lr.audits?.[k]?.numericValue ?? null;
+          pagespeed = {
+            strategy,
+            performance: lr.categories?.performance?.score ?? null,
+            metrics: {
+              fcpMs: n("first-contentful-paint"),
+              lcpMs: n("largest-contentful-paint"),
+              cls: n("cumulative-layout-shift"),
+              tbtMs: n("total-blocking-time"),
+              siMs: n("speed-index"),
+            },
+          };
+          pagespeedError = null;
+          break;
+        } else {
+          const errObj = (psiRespUnknown as Record<string, unknown> | undefined) as { error?: { code?: number; message?: string } } | undefined;
+          pagespeedError = {
+            code: resp.status || errObj?.error?.code,
+            statusText: resp.statusText,
+            message: redactKey(errObj?.error?.message) ?? undefined,
+          };
+          // try next strategy
+        }
       }
-    } catch {
+    } catch (e: unknown) {
       pagespeed = null; // Do not block audit if PSI fails
+      pagespeedError = { message: e instanceof Error ? (e.message ? e.message.replace(/(key=)[^&\s]+/gi, "$1REDACTED") : undefined) : "psi_failed" };
     }
 
-    return new Response(JSON.stringify({ url: targetUrl, checks, pagespeed }), {
+    return new Response(JSON.stringify({ url: targetUrl, checks, pagespeed, pagespeedError }), {
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",

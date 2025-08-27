@@ -30,6 +30,7 @@ type AuditResponse = {
       siMs: number | null;
     };
   } | null;
+  pagespeedError?: { code?: number; statusText?: string; message?: string } | null;
 };
 
 export default function AuditClient() {
@@ -208,28 +209,37 @@ function AuditResults({ data }: { data: AuditResponse }) {
             </div>
           )}
 
-          {data.pagespeed && (
-            <div className="grid gap-2">
-              <div className="text-sm text-neutral-300">PageSpeed (Lighthouse)</div>
-              <div className="grid grid-cols-5 gap-2 text-sm">
-                <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
-                  <div className="text-neutral-400">Performance</div>
-                  <div className="font-medium text-neutral-100">
-                    {typeof data.pagespeed.performance === "number"
-                      ? Math.round(data.pagespeed.performance * 100)
-                      : "—"}
-                  </div>
-                </div>
-                <LhCell label="FCP" valueMs={data.pagespeed.metrics.fcpMs} />
-                <LhCell label="LCP" valueMs={data.pagespeed.metrics.lcpMs} />
-                <LhCell label="TBT" valueMs={data.pagespeed.metrics.tbtMs} />
-                <LhCell label="Speed Index" valueMs={data.pagespeed.metrics.siMs} />
-              </div>
-              <div className="text-xs text-neutral-400">Strategy: {data.pagespeed.strategy}</div>
-            </div>
-          )}
+          {/* PageSpeed moved to full-width card below */}
         </div>
       </div>
+
+      {/* Full-width PageSpeed card */}
+      {data.pagespeed && (
+        <div className="rounded-2xl border border-white/10 bg-neutral-900 p-5 grid gap-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-neutral-300">PageSpeed (Lighthouse)</div>
+            <div className="text-xs text-neutral-400">Strategy: {data.pagespeed.strategy}</div>
+          </div>
+          <div className="grid grid-cols-5 gap-2 text-sm">
+            <div className="rounded-lg border border-white/10 bg-neutral-800/70 px-3 py-2">
+              <div className="text-neutral-400">Performance</div>
+              <div className="font-medium text-neutral-100">
+                {typeof data.pagespeed.performance === "number" ? Math.round(data.pagespeed.performance * 100) : "—"}
+              </div>
+            </div>
+            <LhCell label="FCP" valueMs={data.pagespeed.metrics.fcpMs} />
+            <LhCell label="LCP" valueMs={data.pagespeed.metrics.lcpMs} />
+            <LhCell label="TBT" valueMs={data.pagespeed.metrics.tbtMs} />
+            <LhCell label="Speed Index" valueMs={data.pagespeed.metrics.siMs} />
+          </div>
+        </div>
+      )}
+
+      {(!data.pagespeed && data.pagespeedError) && (
+        <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-sm text-yellow-300">
+          PageSpeed unavailable: {data.pagespeedError.message || `${data.pagespeedError.statusText || "error"} (${data.pagespeedError.code ?? ""})`}
+        </div>
+      )}
     </div>
   );
 }
