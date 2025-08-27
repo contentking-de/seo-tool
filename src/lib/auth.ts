@@ -50,6 +50,18 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      try {
+        // Only allow same-origin redirects
+        const target = new URL(url, baseUrl);
+        if (target.origin !== new URL(baseUrl).origin) return baseUrl;
+        // Prevent recursive redirects to the login page
+        if (target.pathname === "/login") return `${baseUrl}/dashboard`;
+        return target.toString();
+      } catch {
+        return baseUrl;
+      }
+    },
   },
 };
 
