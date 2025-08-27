@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import SignOutButton from "./signout";
 import AuditClient from "./AuditClient";
 
 export default async function DashboardPage() {
@@ -11,9 +12,7 @@ export default async function DashboardPage() {
         <header className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-semibold tracking-tight">SEO Tool</h1>
           <nav className="text-sm text-neutral-300">
-            <Link href="/api/auth/signout" className="underline-offset-4 hover:underline">
-              Sign out
-            </Link>
+            <SignOutButton />
           </nav>
         </header>
         <section className="grid gap-6">
